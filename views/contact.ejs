@@ -1,0 +1,33 @@
+<h2>Contactez-nous</h2>
+<p>Remplissez le formulaire ci-dessous pour nous contacter ou vous inscrire à un cours.</p>
+
+<form action="/contact" method="post" id="contactForm">
+  <div class="form-group">
+    <label for="name">Nom complet <span class="required">*</span></label>
+    <input type="text" id="name" name="name" required>
+    <small class="form-text">Minimum 3 caractères</small>
+  </div>
+  
+  <div class="form-group">
+    <label for="email">Email <span class="required">*</span></label>
+    <input type="email" id="email" name="email" required>
+  </div>
+  
+  <div class="form-group">
+    <label for="course">Cours d'intérêt</label>
+    <select id="course" name="course">
+      <option value="">-- Sélectionnez un cours --</option>
+      <option value="intro-ia">Introduction à l'IA</option>
+      <option value="machine-learning">Machine Learning Fondamental</option>
+      <option value="deep-learning">Deep Learning Avancé</option>
+    </select>
+  </div>
+  
+  <div class="form-group">
+    <label for="message">Message</label>
+    <textarea id="message" name="message" rows="5"></textarea>
+    <small class="form-text">Maximum 500 caractères</small>
+  </div>
+  
+  <button type="submit" class="btn">Envoyer</button>
+</form>
