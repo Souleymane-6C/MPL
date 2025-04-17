@@ -217,5 +217,21 @@
   color: #dc3545;
 }
 
+/* Ajouter à votre fichier CSS principal */
+.error-message {
+  font-size: 0.85em;
+  margin-top: 5px;
+}
 
+.is-invalid {
+  border-color: #dc3545;
+}
+
+.is-valid {
+  border-color: #28a745;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
 

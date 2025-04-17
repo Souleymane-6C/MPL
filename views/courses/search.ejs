@@ -1,0 +1,59 @@
+<h2>Recherche de cours</h2>
+
+<div class="search-form mb-4">
+  <form action="/courses/search" method="GET" class="card p-3">
+    <div class="row">
+      <div class="col-md-6">
+        <div class="form-group">
+          <label for="searchTerm">Terme de recherche</label>
+          <input type="text" name="q" id="searchTerm" class="form-control" 
+            placeholder="Titre ou description du cours" value="<%= locals.searchTerm || '' %>">
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="form-group">
+          <label for="minCost">Coût minimum (€)</label>
+          <input type="number" name="minCost" id="minCost" class="form-control" 
+            min="0" value="<%= locals.minCost || '0' %>">
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="form-group">
+          <label for="maxCost">Coût maximum (€)</label>
+          <input type="number" name="maxCost" id="maxCost" class="form-control"
+            min="0" value="<%= locals.maxCost || '' %>">
+        </div>
+      </div>
+    </div>
+    <div class="form-group mt-3">
+      <button type="submit" class="btn btn-primary">Rechercher</button>
+      <a href="/courses/search" class="btn btn-secondary">Réinitialiser</a>
+    </div>
+  </form>
+</div>
+
+<% if (locals.courses && locals.courses.length > 0) { %>
+  <h3>Résultats de la recherche (<%= courses.length %> cours trouvés)</h3>
+  <div class="card-deck">
+    <% courses.forEach(course => { %>
+      <div class="card mb-4">
+        <div class="card-body">
+          <h5 class="card-title"><%= course.title %></h5>
+          <p class="card-text"><%= course.description.substring(0, 100) %>...</p>
+          <p class="card-text">
+            <small class="text-muted">Coût: <%= course.cost %> € | Max étudiants: <%= course.maxStudents %></small>
+          </p>
+          <a href="/courses/<%= course._id %>" class="btn btn-primary">Voir détails</a>
+        </div>
+      </div>
+    <% }); %>
+  </div>
+<% } else if (locals.courses) { %>
+  <div class="alert alert-info">
+    Aucun cours ne correspond à vos critères de recherche.
+  </div>
+<% } %>
+
+<div class="mt-4">
+  <a href="/courses" class="btn btn-secondary">Retour à la liste des cours</a>
+</div>

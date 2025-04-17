@@ -12,7 +12,9 @@
   <h3><%= subscriber.name %></h3> 
   <p><strong>Email:</strong> <%= subscriber.email %></p> 
   <p><strong>Code Postal:</strong> <%= subscriber.zipCode %></p> </div> 
+  
 <a href="/subscribers" class="btn btn-primary">Retour à la liste</a> 
+
 <form action="<%= `/subscribers/${subscriber._id}/delete` %>" method="POST" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer cet abonné?');">
     <button type="submit" class="btn btn-danger">Supprimer</button>
   </form>
