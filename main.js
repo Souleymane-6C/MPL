@@ -1,20 +1,28 @@
 const express = require("express");
- const layouts = require("express-ejs-layouts"); 
-const homeController = require("./controllers/homeController");
-const errorController = require("./controllers/errorController");
+const layouts = require("express-ejs-layouts"); 
 const session = require("express-session");
 const flash = require("connect-flash");
+//const passport = require("passport");
+const passport = require('./config/passport'); 
+const cookieParser = require("cookie-parser");
+
+const methodOverride = require("method-override");
+
+
+const { userValidationRules, validate } = require('./middlewares/userValidation');
+const { isAdmin, isTeacherOrAdmin } = require('./middlewares/authorization');
 
 // Ajoutez les contrôleurs 
 const usersController = require("./controllers/usersController");
  const coursesController = require("./controllers/coursesController"); 
-
 const { body, validationResult } = require('express-validator');
-
 const subscribersController = require("./controllers/subscribersController"); 
-
 const mongoose = require("mongoose"); // Ajout de Mongoose 
- 
+const homeController = require("./controllers/homeController");
+const errorController = require("./controllers/errorController");
+
+const authController = require("./controllers/authController"); 
+
 // Configuration de la connexion à MongoDB 
 mongoose.connect( 
   "mongodb://localhost:27017/ai_academy", 
@@ -30,64 +38,101 @@ const app = express();
 
 
 
-// Définir le port 
-app.set("port", process.env.PORT || 3000); 
- 
-// Configuration d'EJS comme moteur de template 
-app.set("view engine", "ejs");
- app.use(layouts); 
- 
-// Middleware pour traiter les données des formulaires 
-app.use(express.urlencoded({ 
-    extended: false 
-  }) 
-); 
-app.use(express.json()); 
- 
-// Servir les fichiers statiques 
-app.use(express.static("public")); 
 
-// Configuration des sessions et des messages flash
-app.use(
-  session({
-    secret: "ai_academy_secret_key",
-    resave: false,
-    saveUninitialized: false,
-    cookie: { maxAge: 60000 }
-  })
-);
-app.use(flash());
-app.use((req, res, next) => {
-  res.locals.pageTitle = "Bienvenue";
-  next();
-});
-// Middleware pour rendre les messages flash disponibles dans toutes les vues
-app.use((req, res, next) => {
-  res.locals.flashMessages = {
-    success: req.flash("success"),
-    error: req.flash("error"),
-    info: req.flash("info")
-  };
-  next();
-});
-
-// Ajouter le middleware method-override 
-const methodOverride = require("method-override"); app.use(methodOverride("_method", {   methods: ["POST", "GET"] 
+// Configuration de l'application 
+app.set("port", process.env.PORT || 3000); app.set("view engine", "ejs"); app.use(express.static("public")); app.use(layouts); 
+app.use(express.urlencoded({ extended: false }));
+ app.use(express.json()); app.use(methodOverride("_method", {   methods: ["POST", "GET"] 
 })); 
  
-// Routes pour les utilisateurs 
-app.get("/users", usersController.index, usersController.indexView); app.get("/users/new", usersController.new); 
-app.post("/users/create", usersController.create, usersController.redirectView); app.get("/users/:id", usersController.show, usersController.showView); 
-app.get("/users/:id/edit", usersController.edit); 
-app.put("/users/:id/update", usersController.update, usersController.redirectView); app.delete("/users/:id/delete", usersController.delete, usersController.redirectView); 
+// Configuration des cookies et des sessions
+ app.use(cookieParser("secret_passcode")); 
+ app.use(session({   secret: "secret_passcode", 
+  cookie: {     maxAge: 4000000 
+  }, 
+  resave: false,   saveUninitialized: false 
+})); 
  
-// Routes pour les cours 
-app.get("/courses", coursesController.index, coursesController.indexView); app.get("/courses/new", coursesController.new); 
-app.get("/courses/search", coursesController.search, coursesController.searchView);
+// Configuration de flash messages 
+app.use(flash()); 
+ 
+// Configuration de Passport 
+app.use(passport.initialize()); 
+app.use(passport.session()); 
+ 
+// Configuration du User model pour Passport
+ const User = require("./models/user");
+ passport.use(User.createStrategy()); passport.serializeUser(User.serializeUser()); 
+passport.deserializeUser(User.deserializeUser()); 
+ 
+// Middleware pour rendre les variables locales disponibles dans toutes les vues
+ app.use((req, res, next) => {   res.locals.flashMessages = req.flash();   res.locals.loggedIn = req.isAuthenticated();   res.locals.currentUser = req.user; 
+  next(); 
+}); 
+ 
 
-app.post("/courses/create", coursesController.create, coursesController.redirectView); app.get("/courses/:id", coursesController.show, coursesController.showView); app.get("/courses/:id/edit", coursesController.edit); 
-app.put("/courses/:id/update", coursesController.update, coursesController.redirectView); app.delete("/courses/:id/delete", coursesController.delete, coursesController.redirectView); 
-app.post("/courses/:id/enroll", coursesController.enroll, coursesController.redirectView);
+
+app.use((req, res, next) => {
+  res.locals.pageTitle = 'AI Academy'; 
+  next();
+});
+
+
+// Routes pour l'authentification Google
+app.get("/auth/google", passport.authenticate("google", { scope: ['profile', 'email'] }));
+app.get("/auth/google/callback", 
+  passport.authenticate("google", { 
+    failureRedirect: "/login",
+    failureFlash: true,
+    successRedirect: "/",
+    successFlash: "Vous êtes maintenant connecté avec Google!"
+  })
+);
+
+
+// Routes protégées - accessibles uniquement aux utilisateurs connectés 
+//app.use("/users", authController.ensureLoggedIn);
+// app.use("/courses/new", authController.ensureLoggedIn);
+ //app.use("/courses/:id/edit", authController.ensureLoggedIn); 
+
+
+// Routes pour les cours (création et modification accessibles uniquement par les enseignants et admins)
+app.get("/courses", coursesController.index, coursesController.indexView); // Accessible à tous
+app.get("/courses/new", authController.ensureLoggedIn, isTeacherOrAdmin, coursesController.new);
+app.get("/courses/search", coursesController.search, coursesController.searchView); // Accessible à tous
+app.post("/courses/create", authController.ensureLoggedIn, isTeacherOrAdmin, coursesController.create, coursesController.redirectView);
+app.get("/courses/:id", coursesController.show, coursesController.showView); // Accessible à tous
+app.get("/courses/:id/edit", authController.ensureLoggedIn, isTeacherOrAdmin, coursesController.edit);
+app.put("/courses/:id/update", authController.ensureLoggedIn, isTeacherOrAdmin, coursesController.update, coursesController.redirectView);
+app.delete("/courses/:id/delete", authController.ensureLoggedIn, isTeacherOrAdmin, coursesController.delete, coursesController.redirectView);
+app.post("/courses/:id/enroll", authController.ensureLoggedIn, coursesController.enroll, coursesController.redirectView); // Accessible aux utilisateurs connectés
+
+
+// Routes pour les utilisateurs (accessibles uniquement par les admins)
+app.get("/users", authController.ensureLoggedIn, isAdmin, usersController.index, usersController.indexView);
+app.get("/users/new", authController.ensureLoggedIn, isAdmin, usersController.new);
+app.post("/users/create", authController.ensureLoggedIn, isAdmin, usersController.create, usersController.redirectView);
+app.get("/users/:id", authController.ensureLoggedIn, usersController.show, usersController.showView); // Permettre à l'utilisateur de voir son propre profil
+app.get("/users/:id/edit", authController.ensureLoggedIn, isAdmin, usersController.edit);
+app.put("/users/:id/update", authController.ensureLoggedIn, isAdmin, usersController.update, usersController.redirectView);
+app.delete("/users/:id/delete", authController.ensureLoggedIn, isAdmin, usersController.delete, usersController.redirectView);
+ 
+
+
+// Routes d'authentification
+ app.get("/login", authController.login); 
+ app.post("/login", authController.authenticate); 
+app.get("/logout", authController.logout, usersController.redirectView); 
+app.get("/signup", authController.signup); 
+app.post("/signup", userValidationRules(), validate, authController.register, usersController.redirectView);
+ 
+
+// Routes pour la récupération de mot de passe
+app.get("/forgot-password", authController.forgotPassword);
+app.post("/forgot-password", authController.requestPasswordReset);
+app.get("/reset-password/:token", authController.resetPasswordForm);
+app.post("/reset-password/:token", authController.resetPassword);
+
 
 
 
